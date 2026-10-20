@@ -1,0 +1,24 @@
+{
+  "rbi_bank_rate": 0.065,
+  "rbi_bank_rate_as_of": "2025-06-06",
+  "interest_multiplier": 3,
+  "max_credit_days": 45,
+  "day_count_month": 30,
+  "eligible_classes": ["micro", "small"],
+  "ineligible_activities": ["trading"],
+  "ineligible_nic_prefixes": ["45", "46", "47"],
+  "estimate_label": "estimate, verify",
+  "disclaimer": "RecoverPay prepares drafts for review only. This is not legal advice. Messages are never auto-sent. No court, portal, or payment filing is automated.",
+  "forbidden_draft_terms": [
+    "legal action",
+    "we will sue",
+    "file a case",
+    "criminal",
+    "arrest",
+    "you are liable",
+    "you must pay or",
+    "defaulter list",
+    "blackmail",
+    "threaten"
+  ]
+}

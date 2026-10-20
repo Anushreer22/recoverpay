@@ -1,0 +1,40 @@
+{
+  "case_id": "case1_clean",
+  "supplier": {
+    "name": "Aruna Springs Pvt Ltd",
+    "gstin": "29AABCA1234A1Z5",
+    "state": "Karnataka",
+    "udyam": "UDYAM-KR-01-0001234",
+    "enterprise_class": "small",
+    "activity": "manufacturing",
+    "nic_code": "25999",
+    "contact_email": "accounts@arunasprings.example"
+  },
+  "buyer": {
+    "name": "Nexus Components Ltd",
+    "gstin": "27AAACN5678B1Z2",
+    "state": "Maharashtra"
+  },
+  "invoice_no": "INV-2026-118",
+  "invoice_date": "2026-06-01",
+  "invoice_amount": 180000,
+  "currency": "INR",
+  "po_no": "PO-NX-4410",
+  "po_date": "2026-05-20",
+  "po_amount": 180000,
+  "grn_no": "GRN-8821",
+  "delivery_date": "2026-05-28",
+  "accepted_date": "2026-05-28",
+  "agreed_credit_days": 45,
+  "line_items": [
+    {
+      "sku": "SPR-14",
+      "description": "Compression springs 14mm",
+      "qty": 1000,
+      "unit_price": 180,
+      "po_qty": 1000,
+      "grn_qty": 1000
+    }
+  ],
+  "notes": "Demo clean match."
+}

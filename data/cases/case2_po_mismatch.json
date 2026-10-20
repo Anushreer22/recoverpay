@@ -1,0 +1,39 @@
+{
+  "case_id": "case2_po_mismatch",
+  "supplier": {
+    "name": "Meera Dies & Tools",
+    "gstin": "24AABCM9999C1Z8",
+    "state": "Gujarat",
+    "udyam": "UDYAM-GJ-03-0007788",
+    "enterprise_class": "micro",
+    "activity": "manufacturing",
+    "nic_code": "25930"
+  },
+  "buyer": {
+    "name": "Pacific Auto Assemblies",
+    "gstin": "08AAACP1111D1Z6",
+    "state": "Rajasthan"
+  },
+  "invoice_no": "INV-2044",
+  "invoice_date": "2026-05-10",
+  "invoice_amount": 240000,
+  "currency": "INR",
+  "po_no": "PO-PAA-90",
+  "po_date": "2026-04-28",
+  "po_amount": 180000,
+  "grn_no": "GRN-12",
+  "delivery_date": "2026-05-08",
+  "accepted_date": "2026-05-08",
+  "agreed_credit_days": 30,
+  "line_items": [
+    {
+      "sku": "DIE-08",
+      "description": "Press die set",
+      "qty": 4,
+      "unit_price": 60000,
+      "po_qty": 3,
+      "grn_qty": 4
+    }
+  ],
+  "notes": "Demo PO quantity and amount mismatch."
+}

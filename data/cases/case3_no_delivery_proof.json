@@ -1,0 +1,39 @@
+{
+  "case_id": "case3_no_delivery_proof",
+  "supplier": {
+    "name": "Kaveri CNC Services",
+    "gstin": "33AADCK2222E1Z1",
+    "state": "Tamil Nadu",
+    "udyam": "UDYAM-TN-02-0003344",
+    "enterprise_class": "small",
+    "activity": "services",
+    "nic_code": "33127"
+  },
+  "buyer": {
+    "name": "Coastal Fabricators",
+    "gstin": "37AAACC3333F1Z9",
+    "state": "Andhra Pradesh"
+  },
+  "invoice_no": "INV-SVC-77",
+  "invoice_date": "2026-07-01",
+  "invoice_amount": 95000,
+  "currency": "INR",
+  "po_no": "PO-CF-15",
+  "po_date": "2026-06-15",
+  "po_amount": 95000,
+  "grn_no": null,
+  "delivery_date": null,
+  "accepted_date": null,
+  "agreed_credit_days": 45,
+  "line_items": [
+    {
+      "sku": "JOB-77",
+      "description": "CNC job work — shaft finishing",
+      "qty": 1,
+      "unit_price": 95000,
+      "po_qty": 1,
+      "grn_qty": null
+    }
+  ],
+  "notes": "Demo missing delivery / acceptance proof."
+}
