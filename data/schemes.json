@@ -1,0 +1,33 @@
+{
+  "_note": "Fill from the official scheme guidelines with the exact URL. Do not guess.",
+  "schemes": [
+    {
+      "name": "MUDRA",
+      "required_documents": [
+        {"name": "TODO: fill from official guidelines", "source_url": null, "verified": false}
+      ],
+      "notes": null
+    },
+    {
+      "name": "PMEGP",
+      "required_documents": [
+        {"name": "TODO: fill from official guidelines", "source_url": null, "verified": false}
+      ],
+      "notes": null
+    },
+    {
+      "name": "Stand-Up India",
+      "required_documents": [
+        {"name": "TODO: fill from official guidelines", "source_url": null, "verified": false}
+      ],
+      "notes": null
+    },
+    {
+      "name": "CGTMSE",
+      "required_documents": [
+        {"name": "TODO: fill from official guidelines", "source_url": null, "verified": false}
+      ],
+      "notes": null
+    }
+  ]
+}

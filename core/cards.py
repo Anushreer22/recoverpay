@@ -10,6 +10,7 @@ from uagents_core.contrib.protocols.chat import (
 )
 
 from core.calc import load_rules
+from core.guardrails import DISCLAIMER
 from core.models import CasePackage, Draft, InterestEstimate, ReconcileResult
 
 
@@ -127,6 +128,12 @@ def package_review(
     drafts: list[Draft],
 ) -> dict[str, Any]:
     rules = load_rules()
+    disclaimer_val = rules.get("disclaimer")
+    if isinstance(disclaimer_val, dict):
+        disclaimer = disclaimer_val.get("value") or DISCLAIMER
+    else:
+        disclaimer = disclaimer_val or DISCLAIMER
+
     findings = "; ".join(f.message for f in rec.findings) or "none"
     return {
         "title": "Case package for review",
@@ -141,7 +148,7 @@ def package_review(
             },
             {"label": "Reconcile", "value": f"{rec.mode} · {findings}"},
             {"label": "Drafts", "value": f"{len(drafts)} unsent draft(s)"},
-            {"label": "Guardrail", "value": rules["disclaimer"]},
+            {"label": "Guardrail", "value": disclaimer},
         ],
         "approve_cta": {
             "label": "Keep package (do not send)",
@@ -167,4 +174,3 @@ def package_detail(case: CasePackage, estimate: InterestEstimate, rec: Reconcile
             {"label": "Back to review", "selection": {"action": "keep_package"}, "primary": True}
         ],
     }
-

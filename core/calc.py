@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
+from core.guardrails import ESTIMATE_LABEL
 from core.models import (
-    ESTIMATE_LABEL,
     CasePackage,
     Eligibility,
     Finding,
@@ -16,8 +17,38 @@ from core.models import (
 RULES_PATH = Path(__file__).resolve().parent.parent / "data" / "rules.json"
 
 
-def load_rules() -> dict:
-    return json.loads(RULES_PATH.read_text(encoding="utf-8"))
+class RulesNotVerified(Exception):
+    """Raised when a required statutory or legal rule is null or not verified."""
+
+    def __init__(self, key: str, message: str | None = None):
+        self.key = key
+        msg = message or f"Rule '{key}' is null or not verified."
+        super().__init__(msg)
+
+
+def load_rules(path: Path | str | None = None) -> dict[str, Any]:
+    target = Path(path) if path else RULES_PATH
+    return json.loads(target.read_text(encoding="utf-8"))
+
+
+def get_rule(rules: dict[str, Any], key: str) -> Any:
+    """Reads a rule from the rules dictionary.
+
+    Raises:
+        RulesNotVerified: If the key is missing, null, or verified is not True.
+    """
+    if key not in rules:
+        raise RulesNotVerified(key, f"Rule '{key}' not found in rules.")
+    item = rules[key]
+    if isinstance(item, dict) and ("value" in item or "verified" in item):
+        val = item.get("value")
+        verified = item.get("verified", False)
+        if val is None or not verified:
+            raise RulesNotVerified(key, f"Rule '{key}' is null or not verified.")
+        return val
+    if item is None:
+        raise RulesNotVerified(key, f"Rule '{key}' is null.")
+    return item
 
 
 def parse_iso_date(value: str | None) -> date | None:
@@ -34,33 +65,44 @@ def assess_eligibility(
     rules: dict | None = None,
 ) -> Eligibility:
     rules = rules or load_rules()
+
+    reg_required = bool(get_rule(rules, "registration_required"))
+    raw_classes = get_rule(rules, "eligible_classes")
+    eligible_classes = [c.lower() for c in raw_classes]
+    raw_activities = get_rule(rules, "ineligible_activities")
+    ineligible_activities = [a.lower() for a in raw_activities]
+    raw_prefixes = get_rule(rules, "ineligible_nic_prefixes")
+    ineligible_nic = [str(p) for p in raw_prefixes]
+
     klass = (enterprise_class or "").strip().lower()
     act = (activity or "").strip().lower()
     nic = (nic_code or "").strip()
     reasons: list[str] = []
 
-    if not registered:
+    if reg_required and not registered:
         reasons.append("Supplier registration (Udyam) is not confirmed.")
-    if klass not in rules["eligible_classes"]:
-        reasons.append("Delayed-payment provisions are described for micro and small enterprises, not medium.")
-    if act in rules["ineligible_activities"]:
-        reasons.append("Trading activity is treated as out of scope for this checklist.")
+    if klass not in eligible_classes:
+        reasons.append(f"Enterprise class '{klass}' is not in eligible classes {eligible_classes}.")
+    if act in ineligible_activities:
+        reasons.append(f"Activity '{act}' is in ineligible activities.")
     nic_prefix = nic[:2] if nic else ""
-    if nic_prefix in rules["ineligible_nic_prefixes"]:
-        reasons.append(f"NIC code {nic} is in the trading range (45–47) used by this checklist.")
+    if nic_prefix in ineligible_nic:
+        reasons.append(f"NIC code prefix '{nic_prefix}' is in ineligible prefixes {ineligible_nic}.")
 
     return Eligibility(
         registered=registered,
         enterprise_class=klass,
         activity=act,
         nic_code=nic,
-        eligible=len(reasons) == 0 and registered,
+        eligible=len(reasons) == 0 and (registered or not reg_required),
         reasons=reasons,
     )
 
 
 def due_date_for(case: CasePackage, rules: dict | None = None) -> tuple[date, list[str]]:
     rules = rules or load_rules()
+    max_credit_days = int(get_rule(rules, "max_credit_days"))
+
     caveats: list[str] = []
     start = parse_iso_date(case.accepted_date) or parse_iso_date(case.delivery_date) or parse_iso_date(
         case.invoice_date
@@ -68,10 +110,14 @@ def due_date_for(case: CasePackage, rules: dict | None = None) -> tuple[date, li
     if start is None:
         raise ValueError("invoice_date is required")
     if not case.accepted_date:
-        caveats.append("Acceptance date missing; invoice or delivery date used as a stand-in (estimate, verify).")
-    credit = min(int(case.agreed_credit_days or rules["max_credit_days"]), int(rules["max_credit_days"]))
-    if int(case.agreed_credit_days or 0) > int(rules["max_credit_days"]):
-        caveats.append("Agreed credit days exceed 45; checklist caps at 45 days (estimate, verify).")
+        caveats.append(f"Acceptance date missing; invoice or delivery date used as a stand-in ({ESTIMATE_LABEL}).")
+
+    agreed = int(case.agreed_credit_days if case.agreed_credit_days is not None else max_credit_days)
+    credit = min(agreed, max_credit_days)
+    if agreed > max_credit_days:
+        caveats.append(
+            f"Agreed credit days exceed {max_credit_days}; checklist caps at {max_credit_days} days ({ESTIMATE_LABEL})."
+        )
     return start + timedelta(days=credit), caveats
 
 
@@ -83,22 +129,30 @@ def estimate_interest(
     rules = rules or load_rules()
     as_of = as_of or date.today()
     due, caveats = due_date_for(case, rules)
-    caveats.append("All figures are estimates. Verify invoice records, acceptance date, and the current RBI bank rate.")
+
+    bank_rate = float(get_rule(rules, "rbi_bank_rate"))
+    bank_rate_as_of = str(get_rule(rules, "rbi_bank_rate_as_of"))
+    multiplier = float(get_rule(rules, "interest_multiplier"))
+    day_count_month = int(get_rule(rules, "day_count_month"))
+    compounding_basis = str(get_rule(rules, "compounding_basis"))
+
+    caveats.append(
+        f"All figures are estimates ({ESTIMATE_LABEL}). Verify invoice records, acceptance date, and the current RBI bank rate."
+    )
     overdue = (as_of - due).days
     principal = float(case.invoice_amount)
-    bank_rate = float(rules["rbi_bank_rate"])
-    annual = bank_rate * float(rules["interest_multiplier"])
+    annual = bank_rate * multiplier
     interest = 0.0
     if overdue > 0:
         monthly = annual / 12.0
-        months = overdue // int(rules["day_count_month"])
-        rem_days = overdue % int(rules["day_count_month"])
+        months = overdue // day_count_month
+        rem_days = overdue % day_count_month
         accrued = principal * ((1 + monthly) ** months - 1)
         rem = (principal + accrued) * annual * rem_days / 365.0
         interest = round(accrued + rem, 2)
     else:
         overdue = 0
-        caveats.append("Invoice does not appear overdue on the dates supplied (estimate, verify).")
+        caveats.append(f"Invoice does not appear overdue on the dates supplied ({ESTIMATE_LABEL}).")
 
     return InterestEstimate(
         principal=principal,
@@ -107,11 +161,11 @@ def estimate_interest(
         as_of=as_of.isoformat(),
         overdue_days=overdue,
         rbi_bank_rate=bank_rate,
-        rbi_bank_rate_as_of=str(rules["rbi_bank_rate_as_of"]),
+        rbi_bank_rate_as_of=bank_rate_as_of,
         annual_rate=annual,
         interest=interest,
         total=round(principal + interest, 2),
-        method="3 × RBI bank rate, compound monthly rests, remainder days simple/365 (estimate, verify)",
+        method=f"{multiplier:g} × RBI bank rate, compound {compounding_basis} rests, remainder days simple/365 ({ESTIMATE_LABEL})",
         label=ESTIMATE_LABEL,
         caveats=caveats,
     )

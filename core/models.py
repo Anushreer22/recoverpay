@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-
-ESTIMATE_LABEL = "estimate, verify"
+from core.guardrails import DRAFT_BANNER, ESTIMATE_LABEL
+from core.readiness import Profile
 
 
 def to_dict(obj: Any) -> Any:
@@ -116,6 +116,10 @@ class Session:
     reconcile: ReconcileResult | None = None
     estimate: InterestEstimate | None = None
     drafts: list[Draft] = field(default_factory=list)
+    profile: Profile | None = None
+    consent_given: bool = False
+    audit_events: list[dict[str, Any]] = field(default_factory=list)
+    rules: dict[str, Any] | None = None
 
 
 def party_from_dict(data: dict[str, Any]) -> Party:
@@ -155,6 +159,10 @@ def session_from_dict(data: dict[str, Any] | None) -> Session:
         else None,
         estimate=InterestEstimate(**est) if est else None,
         drafts=[Draft(**d) for d in drafts],
+        profile=Profile(**data["profile"]) if data.get("profile") else None,
+        consent_given=bool(data.get("consent_given", False)),
+        audit_events=list(data.get("audit_events") or []),
+        rules=data.get("rules"),
     )
 
 

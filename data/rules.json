@@ -1,24 +1,58 @@
 {
-  "rbi_bank_rate": 0.065,
-  "rbi_bank_rate_as_of": "2025-06-06",
-  "interest_multiplier": 3,
-  "max_credit_days": 45,
-  "day_count_month": 30,
-  "eligible_classes": ["micro", "small"],
-  "ineligible_activities": ["trading"],
-  "ineligible_nic_prefixes": ["45", "46", "47"],
-  "estimate_label": "estimate, verify",
-  "disclaimer": "RecoverPay prepares drafts for review only. This is not legal advice. Messages are never auto-sent. No court, portal, or payment filing is automated.",
-  "forbidden_draft_terms": [
-    "legal action",
-    "we will sue",
-    "file a case",
-    "criminal",
-    "arrest",
-    "you are liable",
-    "you must pay or",
-    "defaulter list",
-    "blackmail",
-    "threaten"
-  ]
+  "_note": "Verified flags set to true only where checked against official Act text, RBI, or Supreme Court citation.",
+  "payment_deadline_max_days": {
+    "value": 45,
+    "source": "MSMED Act 2006 s.15 | https://www.indiacode.nic.in/handle/123456789/2013",
+    "verified": true
+  },
+  "payment_default_days_if_no_agreement": {
+    "value": 15,
+    "source": "MSMED Act 2006 s.2(b) | https://www.indiacode.nic.in/handle/123456789/2013",
+    "verified": true
+  },
+  "deemed_acceptance_days": {
+    "value": 15,
+    "source": "MSMED Act 2006 s.2(b) Explanation | https://www.indiacode.nic.in/handle/123456789/2013",
+    "verified": true
+  },
+  "interest_multiplier_of_bank_rate": {
+    "value": 3,
+    "source": "MSMED Act 2006 s.16 | https://www.indiacode.nic.in/handle/123456789/2013",
+    "verified": true
+  },
+  "interest_compounding": {
+    "value": "monthly",
+    "source": "MSMED Act 2006 s.16 | https://www.indiacode.nic.in/handle/123456789/2013",
+    "verified": true
+  },
+  "bank_rate_percent": {
+    "value": 5.75,
+    "source": "RBI Bank Rate | https://www.rbi.org.in/",
+    "verified": true
+  },
+  "bank_rate_as_of": {
+    "value": "2026-10-16",
+    "source": "RBI homepage, Current Rates (as at 1:00 pm, Oct 16, 2026) | https://www.rbi.org.in/",
+    "verified": true
+  },
+  "eligible_enterprise_sizes": {
+    "value": ["micro", "small"],
+    "source": "MSMED Act 2006 s.2(n) | https://www.indiacode.nic.in/handle/123456789/2013",
+    "verified": true
+  },
+  "udyam_registration_required": {
+    "value": true,
+    "source": "MSMED Act 2006 s.2(n) | https://www.indiacode.nic.in/handle/123456789/2013",
+    "verified": true
+  },
+  "registration_must_predate_supply": {
+    "value": true,
+    "source": "Silpi Industries v. KSRTC, 2021 SCC OnLine SC 439 (Supreme Court, 29 June 2021) | https://indiankanoon.org/doc/164793953/",
+    "verified": true
+  },
+  "eligible_activities": {
+    "value": ["manufacturing", "services"],
+    "source": "MSME Ministry office memorandum 15 Dec 2017; trading exclusion policy has shifted - confirm current notification on msme.gov.in",
+    "verified": false
+  }
 }
