@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 from typing import Any
@@ -7,7 +8,14 @@ from typing import Any
 import requests
 
 from core.guardrails import DRAFT_BANNER, ESTIMATE_LABEL, FORBIDDEN_DRAFT_TERMS
-from core.models import CasePackage, Draft, InterestEstimate, ReconcileResult
+from core.models import (
+    CasePackage,
+    Draft,
+    Finding,
+    InterestEstimate,
+    ReconcileResult,
+    case_from_dict,
+)
 
 
 def _forbidden_terms(rules: dict | None = None) -> list[str]:
@@ -93,7 +101,7 @@ def _template_documents(case: CasePackage, rec: ReconcileResult, rules: dict | N
     )
 
 
-def build_drafts(
+def build_drafts_template(
     case: CasePackage,
     estimate: InterestEstimate,
     rec: ReconcileResult,
@@ -112,7 +120,7 @@ def build_drafts(
 
 
 def asi1_complete(user_prompt: str, system_prompt: str) -> str | None:
-    api_key = os.getenv("ASI1_API_KEY")
+    api_key = os.getenv("ASI1_API_KEY") or os.getenv("ASI_ONE_API_KEY")
     if not api_key:
         return None
     base = os.getenv("ASI1_BASE_URL", "https://api.asi1.ai/v1").rstrip("/")
@@ -136,3 +144,131 @@ def asi1_complete(user_prompt: str, system_prompt: str) -> str | None:
         return str(response.json()["choices"][0]["message"]["content"])
     except (requests.RequestException, KeyError, IndexError, ValueError):
         return None
+
+
+def parse_case_with_asi1(text: str) -> tuple[CasePackage | None, bool]:
+    """
+    (a) Turn user's free text into a CasePackage using ASI1.
+    Returns (case, used_asi1). If ASI1 is unavailable or fails, returns (None, False).
+    """
+    if not (os.getenv("ASI1_API_KEY") or os.getenv("ASI_ONE_API_KEY")):
+        return None, False
+
+    sys_prompt = (
+        "You are an MSME data extraction engine. Extract invoice details from user text into strict JSON "
+        "matching this structure:\n"
+        "{\n"
+        '  "case_id": "case_custom",\n'
+        '  "supplier": {"name": "Supplier Name", "gstin": null, "state": null, "udyam": null},\n'
+        '  "buyer": {"name": "Buyer Name", "gstin": null, "state": null},\n'
+        '  "invoice_no": "INV-100",\n'
+        '  "invoice_date": "2024-01-01",\n'
+        '  "invoice_amount": 100000.0,\n'
+        '  "currency": "INR",\n'
+        '  "po_no": null,\n'
+        '  "agreed_credit_days": 45,\n'
+        '  "line_items": []\n'
+        "}\n"
+        "Output ONLY raw JSON. No explanations, no markdown fences."
+    )
+    raw = asi1_complete(user_prompt=text, system_prompt=sys_prompt)
+    if not raw:
+        return None, False
+    try:
+        clean_raw = raw.strip()
+        if clean_raw.startswith("```"):
+            clean_raw = re.sub(r"^```[a-zA-Z]*\n?", "", clean_raw)
+            clean_raw = re.sub(r"\n?```$", "", clean_raw).strip()
+        data = json.loads(clean_raw)
+        return case_from_dict(data), True
+    except Exception:
+        return None, False
+
+
+def explain_evidence_gaps(findings: list[Finding], case: CasePackage) -> tuple[str, bool]:
+    """
+    (b) Explain evidence gaps in plain language using ASI1.
+    Returns (explanation, used_asi1). If ASI1 fails, falls back to factual template text.
+    """
+    if not findings:
+        return "No evidence gaps identified. Supporting documents appear complete.", False
+
+    findings_text = "; ".join(f.message for f in findings)
+    if not (os.getenv("ASI1_API_KEY") or os.getenv("ASI_ONE_API_KEY")):
+        return f"Evidence gaps noted (template fallback): {findings_text}", False
+
+    sys_prompt = (
+        "You are a factual MSME documentation specialist. Explain the following invoice document findings "
+        "and evidence gaps in simple, neutral plain language for an Indian MSME supplier. "
+        "Do NOT make legal threats, do NOT promise recovery, do NOT cite legal conclusions. "
+        "Keep it strictly factual and objective."
+    )
+    user_prompt = f"Case {case.invoice_no} findings: {findings_text}."
+    explained = asi1_complete(user_prompt=user_prompt, system_prompt=sys_prompt)
+    if explained and not draft_violations(explained):
+        return explained.strip(), True
+    return f"Evidence gaps noted (template fallback): {findings_text}", False
+
+
+def build_drafts_with_status(
+    case: CasePackage,
+    estimate: InterestEstimate,
+    rec: ReconcileResult,
+    rules: dict | None = None,
+    use_llm: bool = True,
+) -> tuple[list[Draft], bool]:
+    """
+    (c) Word drafts inside fixed templates using ASI1.
+    If ASI1 fails, falls back to fixed templates and sets used_asi1=False.
+    """
+    base_drafts = build_drafts_template(case, estimate, rec, rules)
+    if not use_llm or not (os.getenv("ASI1_API_KEY") or os.getenv("ASI_ONE_API_KEY")):
+        return base_drafts, False
+
+    if not rec.can_draft_payment_reminder:
+        # When delivery proof or evidence is incomplete, payment reminders are blocked
+        return base_drafts, False
+
+    try:
+        findings = "; ".join(f.message for f in rec.findings) or "none noted"
+        sys_prompt = (
+            f"You are a factual MSME documentation assistant. Wording must remain strictly inside this banner:\n"
+            f"{DRAFT_BANNER}\n\n"
+            f"Draft a neutral, polite, factual payment reminder for review by the supplier. "
+            f"Mandatory facts: Invoice {case.invoice_no}, Date {case.invoice_date}, Amount {case.currency} {case.invoice_amount:.2f}, "
+            f"Due date {estimate.due_date} ({estimate.label}), Overdue days {estimate.overdue_days} ({estimate.label}), "
+            f"Interest working {case.currency} {estimate.interest:.2f} ({estimate.label}), "
+            f"Document notes: {findings}. "
+            f"Never threaten legal action. Never conclude guilt. "
+            f"End strictly with: {DRAFT_BANNER}"
+        )
+        user_prompt = f"Draft payment reminder for buyer {case.buyer.name} from supplier {case.supplier.name}."
+        llm_body = asi1_complete(user_prompt=user_prompt, system_prompt=sys_prompt)
+        if llm_body and not draft_violations(llm_body, rules):
+            sanitized = sanitize_draft_text(llm_body, rules)
+            reminder = Draft(
+                kind="reminder",
+                subject=f"Payment reminder — invoice {case.invoice_no} (draft for review)",
+                body=sanitized,
+            )
+            follow_body = sanitized.replace("payment reminder", "follow-up on unpaid invoice", 1)
+            follow = Draft(
+                kind="followup",
+                subject=f"Follow-up — invoice {case.invoice_no} (draft for review)",
+                body=sanitize_draft_text(follow_body, rules),
+            )
+            return [reminder, follow], True
+    except Exception:
+        pass
+
+    return base_drafts, False
+
+
+def build_drafts(
+    case: CasePackage,
+    estimate: InterestEstimate,
+    rec: ReconcileResult,
+    rules: dict | None = None,
+) -> list[Draft]:
+    drafts, _ = build_drafts_with_status(case, estimate, rec, rules, use_llm=True)
+    return drafts

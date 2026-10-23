@@ -71,6 +71,7 @@ class ReconcileResult:
     evidence_complete: bool
     can_draft_payment_reminder: bool
     findings: list[Finding] = field(default_factory=list)
+    notes: str = ""
 
 
 @dataclass
@@ -120,6 +121,10 @@ class Session:
     consent_given: bool = False
     audit_events: list[dict[str, Any]] = field(default_factory=list)
     rules: dict[str, Any] | None = None
+    step_keys: dict[str, str] = field(default_factory=dict)
+    failed_step: str | None = None
+    fallback_available: bool = False
+    fallback_mode: str | None = None
 
 
 def party_from_dict(data: dict[str, Any]) -> Party:
@@ -153,7 +158,11 @@ def session_from_dict(data: dict[str, Any] | None) -> Session:
         eligibility=Eligibility(**elig) if elig else None,
         case=case_from_dict(case) if case else None,
         reconcile=ReconcileResult(
-            **{**rec, "findings": [Finding(**f) for f in rec.get("findings", [])]}
+            **{
+                **rec,
+                "findings": [Finding(**f) for f in rec.get("findings", [])],
+                "notes": rec.get("notes", ""),
+            }
         )
         if rec
         else None,
@@ -163,6 +172,10 @@ def session_from_dict(data: dict[str, Any] | None) -> Session:
         consent_given=bool(data.get("consent_given", False)),
         audit_events=list(data.get("audit_events") or []),
         rules=data.get("rules"),
+        step_keys=dict(data.get("step_keys") or {}),
+        failed_step=data.get("failed_step"),
+        fallback_available=bool(data.get("fallback_available", False)),
+        fallback_mode=data.get("fallback_mode"),
     )
 
 
