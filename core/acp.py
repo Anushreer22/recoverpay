@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import sys
+
 from uagents import Agent, Context, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -60,5 +63,6 @@ def attach_chat(agent: Agent, on_text):
     async def handle_ack(ctx: Context, sender: str, msg: ChatAcknowledgement) -> None:
         ctx.logger.info("Ack from %s for %s", sender, msg.acknowledged_msg_id)
 
-    agent.include(chat_proto, publish_manifest=True)
+    is_test = "pytest" in sys.modules or bool(os.getenv("PYTEST_CURRENT_TEST"))
+    agent.include(chat_proto, publish_manifest=False if is_test else True)
     return chat_proto

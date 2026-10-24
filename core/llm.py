@@ -146,6 +146,57 @@ def asi1_complete(user_prompt: str, system_prompt: str) -> str | None:
         return None
 
 
+EXTRACTION_SYSTEM_PROMPT = (
+    "You are a strict data extraction engine for Indian MSME overdue claims under the MSMED Act 2006. "
+    "Extract invoice facts from the user's text into strict JSON with these exact keys:\n"
+    "{\n"
+    '  "supplier_name": string or null,\n'
+    '  "buyer_name": string or null,\n'
+    '  "invoice_no": string or null,\n'
+    '  "invoice_date": string or null,\n'
+    '  "amount": number or string or null,\n'
+    '  "agreed_terms_days": integer or null,\n'
+    '  "po_no": string or null,\n'
+    '  "po_amount": number or string or null,\n'
+    '  "delivery_date": string or null,\n'
+    '  "signed_delivery_proof": boolean or null,\n'
+    '  "payments_received": number or string or null,\n'
+    '  "notes": string or null,\n'
+    '  "multiple_invoices": boolean or null\n'
+    "}\n\n"
+    "CRITICAL RULES:\n"
+    "1. Output valid JSON ONLY. Never output explanations, notes, or markdown fences (```).\n"
+    "2. Forbid inventing or guessing missing values: if any field is not explicitly stated in the text, it MUST be null.\n"
+    "3. If the user mentions more than one invoice, set multiple_invoices to true.\n"
+    "4. If signed proof of delivery or GRN is explicitly confirmed, set signed_delivery_proof to true; if stated as missing, set false; if unmentioned, set null."
+)
+
+
+def extract_case_with_asi1(text: str) -> tuple[dict[str, Any] | None, bool, str | None]:
+    """
+    Extracts structured invoice case data from plain language using asi1_complete.
+    Returns (data, used_asi1, error_message).
+    """
+    if not (os.getenv("ASI1_API_KEY") or os.getenv("ASI_ONE_API_KEY")):
+        return None, False, "ASI:One API key is not configured"
+
+    raw = asi1_complete(text, EXTRACTION_SYSTEM_PROMPT)
+    if not raw:
+        return None, False, "ASI:One service did not respond or returned empty output"
+
+    try:
+        clean_raw = raw.strip()
+        if clean_raw.startswith("```"):
+            clean_raw = re.sub(r"^```[a-zA-Z]*\n?", "", clean_raw)
+            clean_raw = re.sub(r"\n?```$", "", clean_raw).strip()
+        data = json.loads(clean_raw)
+        if not isinstance(data, dict):
+            return None, False, "ASI:One returned non-object JSON"
+        return data, True, None
+    except Exception as exc:
+        return None, False, f"ASI:One returned invalid JSON: {exc}"
+
+
 def parse_case_with_asi1(text: str) -> tuple[CasePackage | None, bool]:
     """
     (a) Turn user's free text into a CasePackage using ASI1.

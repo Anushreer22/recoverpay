@@ -1,58 +1,71 @@
 {
-  "_note": "Verified flags set to true only where checked against official Act text, RBI, or Supreme Court citation.",
+  "_note": "Verified flags are set to true only where the official source was checked. Values left false are deliberately unverified — the calculator must refuse to use them. This file is not legal advice.",
+
   "payment_deadline_max_days": {
     "value": 45,
-    "source": "MSMED Act 2006 s.15 | https://www.indiacode.nic.in/handle/123456789/2013",
+    "source": "MSMED Act 2006, s.15 | https://www.indiacode.nic.in/handle/123456789/12875?locale=en | Gazette copy: https://dcmsme.gov.in/old/MSMED2006.pdf",
     "verified": true
   },
+
   "payment_default_days_if_no_agreement": {
     "value": 15,
-    "source": "MSMED Act 2006 s.2(b) | https://www.indiacode.nic.in/handle/123456789/2013",
+    "source": "MSMED Act 2006, s.2(b) and s.15 | https://www.indiacode.nic.in/handle/123456789/12875?locale=en | Gazette copy: https://dcmsme.gov.in/old/MSMED2006.pdf",
     "verified": true
   },
+
   "deemed_acceptance_days": {
     "value": 15,
-    "source": "MSMED Act 2006 s.2(b) Explanation | https://www.indiacode.nic.in/handle/123456789/2013",
+    "source": "MSMED Act 2006, s.2(b) Explanation | https://www.indiacode.nic.in/handle/123456789/12875?locale=en | Gazette copy: https://dcmsme.gov.in/old/MSMED2006.pdf",
     "verified": true
   },
+
   "interest_multiplier_of_bank_rate": {
     "value": 3,
-    "source": "MSMED Act 2006 s.16 | https://www.indiacode.nic.in/handle/123456789/2013",
+    "source": "MSMED Act 2006, s.16 | https://www.indiacode.nic.in/handle/123456789/12875?locale=en | Gazette copy: https://dcmsme.gov.in/old/MSMED2006.pdf",
     "verified": true
   },
+
   "interest_compounding": {
     "value": "monthly",
-    "source": "MSMED Act 2006 s.16 | https://www.indiacode.nic.in/handle/123456789/2013",
+    "source": "MSMED Act 2006, s.16 (compound interest with monthly rests) | https://www.indiacode.nic.in/handle/123456789/12875?locale=en | Gazette copy: https://dcmsme.gov.in/old/MSMED2006.pdf",
     "verified": true
   },
-  "bank_rate_percent": {
-    "value": 5.75,
-    "source": "RBI Bank Rate | https://www.rbi.org.in/",
-    "verified": true
-  },
-  "bank_rate_as_of": {
-    "value": "2026-10-16",
-    "source": "RBI homepage, Current Rates (as at 1:00 pm, Oct 16, 2026) | https://www.rbi.org.in/",
-    "verified": true
-  },
+
   "eligible_enterprise_sizes": {
     "value": ["micro", "small"],
-    "source": "MSMED Act 2006 s.2(n) | https://www.indiacode.nic.in/handle/123456789/2013",
+    "source": "MSMED Act 2006, s.2(n) — 'supplier' means a micro or small enterprise that has filed a memorandum under s.8(1) | https://www.indiacode.nic.in/handle/123456789/12875?locale=en",
     "verified": true
   },
+
   "udyam_registration_required": {
     "value": true,
-    "source": "MSMED Act 2006 s.2(n) | https://www.indiacode.nic.in/handle/123456789/2013",
+    "description": "Section 2(n) requires a memorandum under s.8(1). Udyam registration is how that memorandum is filed today; the Act text itself does not use the word 'Udyam'.",
+    "source": "MSMED Act 2006, s.2(n) and s.8(1) | https://www.indiacode.nic.in/handle/123456789/12875?locale=en | Udyam registration portal: https://udyamregistration.gov.in/",
     "verified": true
   },
+
+  "bank_rate_percent": {
+    "value": 5.75,
+    "source": "RBI homepage (Bank Rate shown as 5.75% as at 1:00 pm on 16 Oct 2026) | https://www.rbi.org.in/ | Dated circular: RBI/2026-27/282, 7 Oct 2026 (repo 5.50%, MSF 5.75%) | https://rbi.org.in/SCRIPTS/BS_PressReleaseDisplay.aspx?prid=63742",
+    "note": "The RBI homepage shows the current rate and will change; the dated circular is the fixed citation. The circular does not itself state the Bank Rate — the homepage does.",
+    "verified": true
+  },
+
+  "bank_rate_as_of": {
+    "value": "2026-10-16",
+    "source": "RBI homepage | https://www.rbi.org.in/",
+    "verified": true
+  },
+
   "registration_must_predate_supply": {
-    "value": true,
-    "source": "Silpi Industries v. KSRTC, 2021 SCC OnLine SC 439 (Supreme Court, 29 June 2021) | https://indiankanoon.org/doc/164793953/",
-    "verified": true
+    "value": false,
+    "source": "CONTESTED. Silpi Industries v. KSRTC (29 June 2021, 2021 SCC Online SC 439) held registration is prospective. NBCC (India) v. State of West Bengal (10 Jan 2025) questioned that position and noted registration is discretionary for micro and small enterprises. Not settled law — agent must not state it as a rule.",
+    "verified": false
   },
+
   "eligible_activities": {
     "value": ["manufacturing", "services"],
-    "source": "MSME Ministry office memorandum 15 Dec 2017; trading exclusion policy has shifted - confirm current notification on msme.gov.in",
+    "source": "UNVERIFIED. Act defines 'enterprise' to cover manufacturing and services; 'supplier' also names bodies selling goods made by small enterprises. The trading exclusion comes from a Ministry memorandum that has not been located. Do not use until the Ministry notification is confirmed.",
     "verified": false
   }
 }

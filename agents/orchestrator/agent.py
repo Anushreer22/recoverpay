@@ -31,6 +31,7 @@ from core.models import (
     session_to_dict,
     to_dict,
 )
+from core.payment import attach_payment_protocol
 from core.recovery import make_step_key, run_fallback_reconciliation
 from core.state import Turn, _run_pipeline, handle_turn
 
@@ -309,6 +310,7 @@ async def on_text(ctx: Context, sender: str, text: str) -> Turn:
 
 
 attach_chat(agent, on_text)
+attach_payment_protocol(agent, role="seller")
 
 
 @agent.on_event("startup")

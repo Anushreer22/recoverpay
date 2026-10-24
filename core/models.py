@@ -55,6 +55,8 @@ class CasePackage:
     agreed_credit_days: int = 45
     line_items: list[LineItem] = field(default_factory=list)
     notes: str = ""
+    payments_received: float = 0.0
+    signed_delivery_proof: bool | None = None
 
 
 @dataclass
@@ -125,9 +127,15 @@ class Session:
     failed_step: str | None = None
     fallback_available: bool = False
     fallback_mode: str | None = None
+    pending_case_data: dict[str, Any] | None = None
+    missing_fields: list[str] = field(default_factory=list)
 
 
-def party_from_dict(data: dict[str, Any]) -> Party:
+def party_from_dict(data: Any) -> Party:
+    if isinstance(data, Party):
+        return data
+    if isinstance(data, str):
+        return Party(name=data)
     return Party(**{k: data[k] for k in Party.__dataclass_fields__ if k in data})
 
 
@@ -135,7 +143,10 @@ def case_from_dict(data: dict[str, Any]) -> CasePackage:
     payload = dict(data)
     supplier = party_from_dict(payload.pop("supplier"))
     buyer = party_from_dict(payload.pop("buyer"))
-    items = [LineItem(**item) for item in payload.pop("line_items", [])]
+    items = [
+        LineItem(**item) if isinstance(item, dict) else item
+        for item in payload.pop("line_items", [])
+    ]
     allowed = set(CasePackage.__dataclass_fields__)
     return CasePackage(
         supplier=supplier,
@@ -176,6 +187,8 @@ def session_from_dict(data: dict[str, Any] | None) -> Session:
         failed_step=data.get("failed_step"),
         fallback_available=bool(data.get("fallback_available", False)),
         fallback_mode=data.get("fallback_mode"),
+        pending_case_data=data.get("pending_case_data"),
+        missing_fields=list(data.get("missing_fields") or []),
     )
 
 

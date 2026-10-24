@@ -197,7 +197,12 @@ def estimate_interest(
         f"All figures are estimates ({ESTIMATE_LABEL}). Verify invoice records, acceptance date, and the current RBI bank rate."
     )
     overdue = (as_of - due).days
-    principal = float(case.invoice_amount)
+    payments = float(getattr(case, "payments_received", 0.0) or 0.0)
+    principal = max(0.0, float(case.invoice_amount) - payments)
+    if payments > 0:
+        caveats.append(
+            f"Interest is estimated on the remaining principal only ({case.currency} {principal:g} after partial payments of {case.currency} {payments:g}) ({ESTIMATE_LABEL})."
+        )
     annual = bank_rate * multiplier
     interest = 0.0
     if overdue > 0:

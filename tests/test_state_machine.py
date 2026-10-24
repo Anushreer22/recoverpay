@@ -65,3 +65,40 @@ def test_keep_package_does_not_send():
     session, turn = handle_turn(session, '{"action":"keep_package"}')
     assert session.stage == "done"
     assert "not" in turn.text.lower() and "sent" in turn.text.lower()
+
+
+def test_agent_mention_stripped_and_reconcile_case_guidance():
+    # Test agent mention prefix stripping
+    session, turn = handle_turn(
+        Session(rules=TEST_RULES),
+        "@agent1qg8q2akju5ejwsyzkjyjssh7y4q4metk8u0umkc3ggqtq0xlf69ukt9tl84 reconcile_case",
+    )
+    # When before eligibility
+    assert "eligib" in turn.text.lower() or turn.card_kind == "form"
+
+    # Now confirm eligibility
+    session, turn = handle_turn(
+        session,
+        "@agent1qg8q2akju5ejwsyzkjyjssh7y4q4metk8u0umkc3ggqtq0xlf69ukt9tl84 yes, registered micro",
+    )
+    assert session.stage == "intake"
+
+    # Now sending reconcile_case when no case is loaded gives clear guidance
+    session, turn = handle_turn(session, "reconcile_case")
+    assert "load case1" in turn.text
+    assert "new case" in turn.text
+
+    # Loading a case with mention prefix
+    session, turn = handle_turn(
+        session,
+        "@agent1qg8q2akju5ejwsyzkjyjssh7y4q4metk8u0umkc3ggqtq0xlf69ukt9tl84 load case1",
+    )
+    assert session.case is not None
+    assert session.stage == "review"
+
+    # Calling reconcile_case when case is loaded runs reconciliation and pipeline
+    session, turn = handle_turn(session, "reconcile_case")
+    assert session.case is not None
+    assert session.stage == "review"
+    assert "working file ready" in turn.text.lower()
+

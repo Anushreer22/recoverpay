@@ -6,6 +6,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from uagents import Agent
 
+import sys
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -38,12 +40,18 @@ def make_agent(
             env_port = os.getenv(fb.replace("_SEED", "_PORT"))
             if env_port:
                 break
+    is_test = (
+        "pytest" in sys.modules
+        or "_pytest" in sys.modules
+        or bool(os.getenv("PYTEST_CURRENT_TEST"))
+        or any("pytest" in a for a in sys.argv)
+    )
     return Agent(
         name=name,
         seed=seed,
         port=int(env_port or port),
-        mailbox=True,
-        publish_agent_details=True,
+        mailbox=False if is_test else True,
+        publish_agent_details=False if is_test else True,
         description=description,
-        readme_path=str(ROOT / "README.md"),
+        readme_path=None,
     )

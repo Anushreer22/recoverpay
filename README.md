@@ -4,8 +4,9 @@
 [![Innovation Lab](https://img.shields.io/badge/Innovation_Lab-Fetch--A--Thon_3.0-3D8BD3.svg)](https://innovationlab.fetch.ai)
 [![ASI:One](https://img.shields.io/badge/ASI:One-asi1--mini-5F43F1.svg)](https://asi1.ai)
 [![Python](https://img.shields.io/badge/Python-3.11+-brightgreen.svg)](https://python.org)
-[![Tests](https://img.shields.io/badge/Tests-43_Passed-success.svg)](./docs/test_results.md)
+[![Tests](https://img.shields.io/badge/Tests-56_Passed-success.svg)](./docs/test_results.md)
 [![Agent Chat Protocol](https://img.shields.io/badge/ACP-0.3.0-orange.svg)](https://agentverse.ai)
+[![Payment Protocol](https://img.shields.io/badge/Payment_Protocol-v0.1.0-8A2BE2.svg)](https://fetch.ai)
 
 > **Autonomous Multi-Agent Dispute Reconciliation & Overdue Claim Preparation for Indian Micro, Small, and Medium Enterprises (MSMEs)**  
 > Built strictly under the statutory framework of the **Micro, Small and Medium Enterprises Development (MSMED) Act, 2006**.

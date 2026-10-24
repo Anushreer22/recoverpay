@@ -117,7 +117,55 @@ def case_carousel() -> dict[str, Any]:
                     "selection": {"action": "load_case", "case_id": "case3_no_delivery_proof"},
                 },
             },
+            {
+                "id": "case_custom_new",
+                "title": "New Case — Custom Invoice",
+                "subtitle": "Describe any overdue invoice in plain English",
+                "badges": [{"label": "AI Intake", "variant": "success"}],
+                "secondary_text": "ASI:One Extractor",
+                "primary_cta": {
+                    "label": "Create",
+                    "selection": {"action": "new_case"},
+                },
+            },
         ],
+    }
+
+
+def readiness_card(result: Any) -> dict[str, Any]:
+    return {
+        "title": f"Scheme Readiness: {getattr(result, 'scheme', 'Official Scheme')}",
+        "subtitle": getattr(result, "label", "Draft checklist, confirm with the lender or official portal"),
+        "summary_rows": [
+            {"label": "Scheme", "value": getattr(result, "scheme", "Scheme")},
+            {"label": "Documents Held", "value": f"{len(getattr(result, 'held', []))} document(s)"},
+            {"label": "Documents Missing", "value": f"{len(getattr(result, 'missing', []))} document(s)"},
+            {"label": "Official Sources", "value": f"{len(getattr(result, 'sources', []))} verified portal link(s)"},
+        ],
+        "approve_cta": {
+            "label": "Done / Back to Home",
+            "selection": {"action": "reset"},
+            "primary": True,
+        },
+    }
+
+
+def payment_card(invoice_no: str, amount: float, currency: str, recipient: str) -> dict[str, Any]:
+    return {
+        "title": f"Payment Settlement Request — {invoice_no}",
+        "subtitle": "Fetch.ai Agent Payment Protocol (v0.1.0)",
+        "summary_rows": [
+            {"label": "Invoice", "value": invoice_no},
+            {"label": "Settlement Amount", "value": f"{currency} {amount:,.2f}"},
+            {"label": "Payee Address", "value": (recipient[:22] + "...") if len(recipient) > 22 else recipient},
+            {"label": "Payment Method", "value": "fet_direct / skyfire"},
+        ],
+        "approve_cta": {
+            "label": "Simulate Buyer Settlement",
+            "selection": {"action": "simulate_settlement", "invoice_no": invoice_no},
+            "primary": True,
+        },
+        "reject_cta": {"label": "Back to Review", "selection": {"action": "keep_package"}},
     }
 
 

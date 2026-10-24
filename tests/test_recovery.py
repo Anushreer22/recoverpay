@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import ast
 import os
 from pathlib import Path
@@ -313,198 +314,204 @@ class MockContext:
         self.sent_messages.append((destination, message))
 
 
-@pytest.mark.asyncio
-async def test_verifier_agent_force_fail_never_replies():
+def test_verifier_agent_force_fail_never_replies():
     """Verify Verifier agent never replies when FORCE_FAIL=true."""
-    os.environ["FORCE_FAIL"] = "true"
-    try:
-        ctx = MockContext()
-        case = load_case("case1_clean")
-        req = ReconcileRequest(request_id="r1", case=to_dict(case), mode="full")
-        await verifier_handle_reconcile(ctx, "agent1_sender", req)
-        assert len(ctx.sent_messages) == 0
-    finally:
-        os.environ.pop("FORCE_FAIL", None)
+    async def _test():
+        os.environ["FORCE_FAIL"] = "true"
+        try:
+            ctx = MockContext()
+            case = load_case("case1_clean")
+            req = ReconcileRequest(request_id="r1", case=to_dict(case), mode="full")
+            await verifier_handle_reconcile(ctx, "agent1_sender", req)
+            assert len(ctx.sent_messages) == 0
+        finally:
+            os.environ.pop("FORCE_FAIL", None)
+    asyncio.run(_test())
 
 
-@pytest.mark.asyncio
-async def test_verifier_agent_normal_replies_with_result():
+def test_verifier_agent_normal_replies_with_result():
     """Verify Verifier agent returns full evidence reconciliation result when FORCE_FAIL=false."""
-    os.environ["FORCE_FAIL"] = "false"
-    try:
+    async def _test():
+        os.environ["FORCE_FAIL"] = "false"
+        try:
+            ctx = MockContext()
+            case = load_case("case1_clean")
+            req = ReconcileRequest(request_id="r2", case=to_dict(case), mode="full")
+            await verifier_handle_reconcile(ctx, "agent1_sender", req)
+            assert len(ctx.sent_messages) == 1
+            dest, resp = ctx.sent_messages[0]
+            assert dest == "agent1_sender"
+            assert isinstance(resp, ReconcileResponse)
+            assert resp.mode == "full"
+            assert resp.result["matched"] is True
+        finally:
+            os.environ.pop("FORCE_FAIL", None)
+    asyncio.run(_test())
+
+
+def test_fallback_agent_replies_with_fewer_checks():
+    """Verify Fallback agent executes mode lite and notes fewer checks."""
+    async def _test():
         ctx = MockContext()
         case = load_case("case1_clean")
-        req = ReconcileRequest(request_id="r2", case=to_dict(case), mode="full")
-        await verifier_handle_reconcile(ctx, "agent1_sender", req)
+        req = ReconcileRequest(request_id="r3", case=to_dict(case), mode="lite")
+        await fallback_handle_reconcile(ctx, "agent1_sender", req)
         assert len(ctx.sent_messages) == 1
         dest, resp = ctx.sent_messages[0]
         assert dest == "agent1_sender"
         assert isinstance(resp, ReconcileResponse)
-        assert resp.mode == "full"
-        assert resp.result["matched"] is True
-    finally:
-        os.environ.pop("FORCE_FAIL", None)
+        assert resp.mode == "lite"
+        assert "fewer checks" in resp.notes.lower()
+    asyncio.run(_test())
 
 
-@pytest.mark.asyncio
-async def test_fallback_agent_replies_with_fewer_checks():
-    """Verify Fallback agent executes mode lite and notes fewer checks."""
-    ctx = MockContext()
-    case = load_case("case1_clean")
-    req = ReconcileRequest(request_id="r3", case=to_dict(case), mode="lite")
-    await fallback_handle_reconcile(ctx, "agent1_sender", req)
-    assert len(ctx.sent_messages) == 1
-    dest, resp = ctx.sent_messages[0]
-    assert dest == "agent1_sender"
-    assert isinstance(resp, ReconcileResponse)
-    assert resp.mode == "lite"
-    assert "fewer checks" in resp.notes.lower()
-
-
-@pytest.mark.asyncio
-async def test_drafter_agent_replies_with_draft_response():
+def test_drafter_agent_replies_with_draft_response():
     """Verify Drafter agent prepares drafts and replies with DraftResponse."""
-    ctx = MockContext()
-    case = load_case("case1_clean")
-    req = DraftRequest(
-        request_id="d1",
-        case=to_dict(case),
-        estimate={
-            "principal": 100000.0,
-            "currency": "INR",
-            "interest": 100.0,
-            "label": "Estimate, verify before use",
-            "due_date": "2024-02-15",
-            "as_of": "2024-03-01",
-            "overdue_days": 15,
-            "rbi_bank_rate": 0.065,
-            "rbi_bank_rate_as_of": "2024-01-01",
-            "annual_rate": 0.195,
-            "total": 100100.0,
-            "method": "test",
-        },
-        reconcile={
-            "mode": "full",
-            "matched": True,
-            "evidence_complete": True,
-            "can_draft_payment_reminder": True,
-            "findings": [],
-        },
-        sender_session_id="user_123",
-    )
-    await drafter_handle_draft(ctx, "agent1_orchestrator", req)
-    assert len(ctx.sent_messages) == 1
-    dest, resp = ctx.sent_messages[0]
-    assert dest == "agent1_orchestrator"
-    assert isinstance(resp, DraftResponse)
-    assert len(resp.drafts) > 0
-
-
-@pytest.mark.asyncio
-async def test_orchestrator_timeout_and_retry_on_interval():
-    """Verify orchestrator checks pending requests, retries once on timeout, then prompts for fallback."""
-    ctx = MockContext()
-    user_sender = "user_456"
-    session = _setup_intake_session()
-    session.case = load_case("case1_clean")
-    session.stage = "work"
-    ctx.storage.set("sessions", {user_sender: session_to_dict(session)})
-
-    now = time.time()
-    ctx.storage.set(
-        "pending_requests",
-        {
-            "req_timeout_1": {
-                "request_id": "req_timeout_1",
-                "user_sender": user_sender,
-                "step": "reconcile",
-                "target_address": "agent1_verifier",
-                "created_at": now - 10.0,
-                "retry_count": 0,
+    async def _test():
+        ctx = MockContext()
+        case = load_case("case1_clean")
+        req = DraftRequest(
+            request_id="d1",
+            case=to_dict(case),
+            estimate={
+                "principal": 100000.0,
+                "currency": "INR",
+                "interest": 100.0,
+                "label": "Estimate, verify before use",
+                "due_date": "2024-02-15",
+                "as_of": "2024-03-01",
+                "overdue_days": 15,
+                "rbi_bank_rate": 0.065,
+                "rbi_bank_rate_as_of": "2024-01-01",
+                "annual_rate": 0.195,
+                "total": 100100.0,
+                "method": "test",
+            },
+            reconcile={
                 "mode": "full",
-                "case": to_dict(session.case),
-            }
-        },
-    )
-
-    # 1st tick: elapsed > 5s and retry_count == 0 -> retries once
-    await check_pending_timeouts(ctx)
-    pending = ctx.storage.get("pending_requests")
-    assert "req_timeout_1" in pending
-    assert pending["req_timeout_1"]["retry_count"] == 1
-    assert len(ctx.sent_messages) == 1
-    dest, sent_req = ctx.sent_messages[0]
-    assert dest == "agent1_verifier"
-    assert sent_req.retry_count == 1
-
-    # Advance time past 5s again
-    pending["req_timeout_1"]["created_at"] = time.time() - 10.0
-    ctx.storage.set("pending_requests", pending)
-
-    # 2nd tick: elapsed > 5s and retry_count >= 1 -> marks failed and asks for fallback approval
-    await check_pending_timeouts(ctx)
-    pending_after = ctx.storage.get("pending_requests")
-    assert "req_timeout_1" not in pending_after
-
-    saved_session = session_from_dict(ctx.storage.get("sessions")[user_sender])
-    assert saved_session.stage == "waiting_for_approval"
-    assert saved_session.failed_step == "reconcile"
-    assert saved_session.fallback_available is True
-
-    # User notified in chat
-    assert len(ctx.sent_messages) == 2
-    chat_dest, chat_msg = ctx.sent_messages[1]
-    assert chat_dest == user_sender
-    assert "timed out after 1 retry" in chat_msg.text().lower()
-    assert "rule-based fallback" in chat_msg.text().lower()
+                "matched": True,
+                "evidence_complete": True,
+                "can_draft_payment_reminder": True,
+                "findings": [],
+            },
+            sender_session_id="user_123",
+        )
+        await drafter_handle_draft(ctx, "agent1_orchestrator", req)
+        assert len(ctx.sent_messages) == 1
+        dest, resp = ctx.sent_messages[0]
+        assert dest == "agent1_orchestrator"
+        assert isinstance(resp, DraftResponse)
+        assert len(resp.drafts) > 0
+    asyncio.run(_test())
 
 
-@pytest.mark.asyncio
-async def test_orchestrator_duplicate_reconcile_response_idempotency():
+def test_orchestrator_timeout_and_retry_on_interval():
+    """Verify orchestrator checks pending requests, retries once on timeout, then prompts for fallback."""
+    async def _test():
+        ctx = MockContext()
+        user_sender = "user_456"
+        session = _setup_intake_session()
+        session.case = load_case("case1_clean")
+        session.stage = "work"
+        ctx.storage.set("sessions", {user_sender: session_to_dict(session)})
+
+        now = time.time()
+        ctx.storage.set(
+            "pending_requests",
+            {
+                "req_timeout_1": {
+                    "request_id": "req_timeout_1",
+                    "user_sender": user_sender,
+                    "step": "reconcile",
+                    "target_address": "agent1_verifier",
+                    "created_at": now - 10.0,
+                    "retry_count": 0,
+                    "mode": "full",
+                    "case": to_dict(session.case),
+                }
+            },
+        )
+
+        # 1st tick: elapsed > 5s and retry_count == 0 -> retries once
+        await check_pending_timeouts(ctx)
+        pending = ctx.storage.get("pending_requests")
+        assert "req_timeout_1" in pending
+        assert pending["req_timeout_1"]["retry_count"] == 1
+        assert len(ctx.sent_messages) == 1
+        dest, sent_req = ctx.sent_messages[0]
+        assert dest == "agent1_verifier"
+        assert sent_req.retry_count == 1
+
+        # Advance time past 5s again
+        pending["req_timeout_1"]["created_at"] = time.time() - 10.0
+        ctx.storage.set("pending_requests", pending)
+
+        # 2nd tick: elapsed > 5s and retry_count >= 1 -> marks failed and asks for fallback approval
+        await check_pending_timeouts(ctx)
+        pending_after = ctx.storage.get("pending_requests")
+        assert "req_timeout_1" not in pending_after
+
+        saved_session = session_from_dict(ctx.storage.get("sessions")[user_sender])
+        assert saved_session.stage == "waiting_for_approval"
+        assert saved_session.failed_step == "reconcile"
+        assert saved_session.fallback_available is True
+
+        # User notified in chat
+        assert len(ctx.sent_messages) == 2
+        chat_dest, chat_msg = ctx.sent_messages[1]
+        assert chat_dest == user_sender
+        assert "timed out after 1 retry" in chat_msg.text().lower()
+        assert "rule-based fallback" in chat_msg.text().lower()
+    asyncio.run(_test())
+
+
+def test_orchestrator_duplicate_reconcile_response_idempotency():
     """Verify duplicate reconcile response delivery does not rerun steps or duplicate audit events."""
-    ctx = MockContext()
-    user_sender = "user_789"
-    session = _setup_intake_session()
-    session.case = load_case("case1_clean")
-    session.stage = "work"
-    ctx.storage.set("sessions", {user_sender: session_to_dict(session)})
+    async def _test():
+        ctx = MockContext()
+        user_sender = "user_789"
+        session = _setup_intake_session()
+        session.case = load_case("case1_clean")
+        session.stage = "work"
+        ctx.storage.set("sessions", {user_sender: session_to_dict(session)})
 
-    ctx.storage.set(
-        "pending_requests",
-        {
-            "req_dup": {
-                "request_id": "req_dup",
-                "user_sender": user_sender,
-                "step": "reconcile",
-            }
-        },
-    )
+        ctx.storage.set(
+            "pending_requests",
+            {
+                "req_dup": {
+                    "request_id": "req_dup",
+                    "user_sender": user_sender,
+                    "step": "reconcile",
+                }
+            },
+        )
 
-    resp = ReconcileResponse(
-        request_id="req_dup",
-        case_id="case1_clean",
-        mode="full",
-        result={
-            "matched": True,
-            "evidence_complete": True,
-            "can_draft_payment_reminder": True,
-            "findings": [],
-        },
-    )
+        resp = ReconcileResponse(
+            request_id="req_dup",
+            case_id="case1_clean",
+            mode="full",
+            result={
+                "matched": True,
+                "evidence_complete": True,
+                "can_draft_payment_reminder": True,
+                "findings": [],
+            },
+        )
 
-    # First delivery
-    await orch_handle_reconcile_resp(ctx, "agent1_verifier", resp)
-    session_after_first = session_from_dict(ctx.storage.get("sessions")[user_sender])
-    assert "reconcile" in session_after_first.step_keys
-    rec_events_1 = [e for e in session_after_first.audit_events if e["step"] == "reconcile"]
-    assert len(rec_events_1) == 1
+        # First delivery
+        await orch_handle_reconcile_resp(ctx, "agent1_verifier", resp)
+        session_after_first = session_from_dict(ctx.storage.get("sessions")[user_sender])
+        assert "reconcile" in session_after_first.step_keys
+        rec_events_1 = [e for e in session_after_first.audit_events if e["step"] == "reconcile"]
+        assert len(rec_events_1) == 1
 
-    # Second delivery
-    ctx.storage.set("pending_requests", {"req_dup": {"request_id": "req_dup", "user_sender": user_sender}})
-    await orch_handle_reconcile_resp(ctx, "agent1_verifier", resp)
-    session_after_second = session_from_dict(ctx.storage.get("sessions")[user_sender])
-    rec_events_2 = [e for e in session_after_second.audit_events if e["step"] == "reconcile"]
-    assert len(rec_events_2) == 1
+        # Second delivery
+        ctx.storage.set("pending_requests", {"req_dup": {"request_id": "req_dup", "user_sender": user_sender}})
+        await orch_handle_reconcile_resp(ctx, "agent1_verifier", resp)
+        session_after_second = session_from_dict(ctx.storage.get("sessions")[user_sender])
+        rec_events_2 = [e for e in session_after_second.audit_events if e["step"] == "reconcile"]
+        assert len(rec_events_2) == 1
+    asyncio.run(_test())
 
 
 def test_asi1_live_path_fallback_behavior(monkeypatch):
