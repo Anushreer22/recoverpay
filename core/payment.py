@@ -132,17 +132,9 @@ def attach_payment_protocol(
         if on_payment_settled:
             on_payment_settled(ctx, sender, msg, reply)
 
-    @proto.on_message(CompletePayment)
-    async def handle_complete(ctx: Context, sender: str, msg: CompletePayment) -> None:
-        ctx.logger.info("Payment confirmed completed for transaction %s", msg.transaction_id)
-
     @proto.on_message(RejectPayment)
     async def handle_reject(ctx: Context, sender: str, msg: RejectPayment) -> None:
         ctx.logger.warning("Payment was rejected by %s: %s", sender, msg.reason)
-
-    @proto.on_message(CancelPayment)
-    async def handle_cancel(ctx: Context, sender: str, msg: CancelPayment) -> None:
-        ctx.logger.warning("Payment cancelled for transaction %s: %s", msg.transaction_id, msg.reason)
 
     import os
     import sys

@@ -540,7 +540,7 @@ def handle_turn(
         )
 
     # Credit query
-    if Planner.is_credit_query(user_text):
+    if action != "new_case" and session.stage not in {"case_intake", "case_confirm"} and Planner.is_credit_query(user_text):
         steps = Planner.get_recommended_steps(user_text, session)
         steps_list = "\n".join(f"{i+1}. {step}" for i, step in enumerate(steps))
         return session, Turn(
