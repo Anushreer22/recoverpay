@@ -52,12 +52,17 @@ def make_agent(
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+    use_mailbox = (
+        not is_test
+        and os.getenv("USE_MAILBOX", "false").lower() in {"1", "true", "yes"}
+    )
     return Agent(
         name=name,
         seed=seed,
         port=int(env_port or port),
         loop=loop,
-        mailbox=False if is_test else True,
+        network="testnet",
+        mailbox=use_mailbox,
         publish_agent_details=False if is_test else True,
         description=description,
         readme_path=None,
