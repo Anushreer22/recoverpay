@@ -6,6 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from uagents import Agent
 
+import asyncio
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -46,10 +47,16 @@ def make_agent(
         or bool(os.getenv("PYTEST_CURRENT_TEST"))
         or any("pytest" in a for a in sys.argv)
     )
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     return Agent(
         name=name,
         seed=seed,
         port=int(env_port or port),
+        loop=loop,
         mailbox=False if is_test else True,
         publish_agent_details=False if is_test else True,
         description=description,
