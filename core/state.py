@@ -575,9 +575,10 @@ def handle_turn(
                 "Send reset to start again."
             )
 
-    if session.stage == "eligibility" and action == "load_case":
+    if session.stage in {"start", "eligibility"} and action in {"load_case", "new_case"}:
         return session, Turn(
-            "Confirm supplier registration and eligibility before loading a case.",
+            "Confirm supplier registration and eligibility before loading or entering an invoice.\n"
+            "Reply 'yes, registered micro' to proceed.",
             card_kind="form",
             card_payload=eligibility_form(),
         )
@@ -826,7 +827,11 @@ def handle_turn(
         session.stage = "work"
         return session, _run_pipeline(session, rules=eff_rules, reconciler=client)
 
-    if session.stage == "intake" and (action == "new_case" or action == "text"):
+    if (session.stage in {"intake", "review", "done"} and action == "new_case") or (session.stage == "intake" and action == "text"):
+        session.case = None
+        session.drafts = []
+        session.estimate = None
+        session.reconcile = None
         stripped = user_text.strip()
         lowered = stripped.lower()
         is_just_new_case = (
