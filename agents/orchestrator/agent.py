@@ -313,6 +313,34 @@ attach_chat(agent, on_text)
 attach_payment_protocol(agent, role="seller")
 
 
+def _try_agentverse_registration() -> None:
+    api_key = os.getenv("AGENTVERSE_KEY") or os.getenv("AGENTVERSE_API_KEY")
+    if not api_key:
+        return
+    try:
+        from uagents_core.utils.registration import (
+            register_chat_agent,
+            RegistrationRequestCredentials,
+        )
+        seed_phrase = (
+            os.getenv("AGENT_SEED_PHRASE")
+            or os.getenv("ORCHESTRATOR_SEED")
+            or "change-me-to-a-long-random-phrase"
+        )
+        endpoint = os.getenv("AGENT_ENDPOINT", "https://modern-houses-brush.loca.lt/submit")
+        register_chat_agent(
+            "recoverpay",
+            endpoint,
+            active=True,
+            credentials=RegistrationRequestCredentials(
+                agentverse_api_key=api_key,
+                agent_seed_phrase=seed_phrase,
+            ),
+        )
+    except Exception:
+        pass
+
+
 @agent.on_event("startup")
 async def startup(ctx: Context) -> None:
     ctx.logger.info("RecoverPay orchestrator address: %s", agent.address)
@@ -321,6 +349,7 @@ async def startup(ctx: Context) -> None:
     ctx.logger.info("  Fallback: %s", get_fallback_address() or "(in-process / local)")
     ctx.logger.info("  Drafter:  %s", get_drafter_address() or "(in-process / local)")
     ctx.logger.info("Drafts for review only. Not legal advice. No auto-send.")
+    _try_agentverse_registration()
 
 
 if __name__ == "__main__":

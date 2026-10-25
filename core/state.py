@@ -82,6 +82,8 @@ def load_case(case_id: str) -> CasePackage:
 
 
 def strip_agent_mention(text: str) -> str:
+    if not isinstance(text, str):
+        return str(text)
     raw = text.strip()
     if raw.startswith("@"):
         match = re.match(r"^@\S+\s*(.*)$", raw, re.DOTALL)
@@ -362,10 +364,13 @@ def produce_scheme_readiness_turn(
 
 def handle_turn(
     session: Session,
-    user_text: str,
+    user_text: str | dict[str, Any],
     rules: dict | None = None,
     reconciler: ReconcilerClient | None = None,
+    schemes: Any = None,
 ) -> tuple[Session, Turn]:
+    if isinstance(user_text, dict):
+        user_text = json.dumps(user_text)
     user_text = strip_agent_mention(user_text)
     if rules is not None:
         session.rules = rules
@@ -477,7 +482,7 @@ def handle_turn(
                 "Please confirm to proceed with scheme readiness check."
             )
 
-        schemes_data = payload.get("schemes") or load_schemes()
+        schemes_data = schemes or payload.get("schemes") or load_schemes()
         profile = session.profile or Profile(
             business_type="micro",
             registration_status="registered",
@@ -576,6 +581,8 @@ def handle_turn(
             )
 
     if session.stage in {"start", "eligibility"} and action in {"load_case", "new_case"}:
+        if action == "new_case":
+            session.pending_case_description = user_text
         return session, Turn(
             "Confirm supplier registration and eligibility before loading or entering an invoice.\n"
             "Reply 'yes, registered micro' to proceed.",
@@ -632,6 +639,10 @@ def handle_turn(
                 f"{_get_disclaimer(eff_rules)}"
             )
         session.stage = "intake"
+        pending_desc = getattr(session, "pending_case_description", None)
+        if pending_desc:
+            session.pending_case_description = None
+            return handle_turn(session, pending_desc, rules=rules, reconciler=reconciler, schemes=schemes)
         return session, Turn(
             "Eligibility recorded for this working file. Choose a demo case or send case JSON.",
             card_kind="carousel",

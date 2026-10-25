@@ -12,6 +12,16 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 
 
+DEFAULT_SEEDS = {
+    "ORCHESTRATOR_SEED": "change-me-to-a-long-random-phrase",
+    "VERIFIER_SEED": "change-me-verifier",
+    "FALLBACK_SEED": "change-me-fallback",
+    "DRAFTER_SEED": "change-me-drafter",
+    "RECONCILER_SEED": "change-me-verifier",
+    "RECONCILER_LITE_SEED": "change-me-fallback",
+}
+
+
 def require_env(name: str, fallback_names: list[str] | None = None) -> str:
     load_dotenv(ROOT / ".env")
     value = os.getenv(name)
@@ -20,6 +30,8 @@ def require_env(name: str, fallback_names: list[str] | None = None) -> str:
             value = os.getenv(fb)
             if value:
                 break
+    if not value:
+        value = DEFAULT_SEEDS.get(name)
     if not value:
         raise RuntimeError(f"Missing {name}. Set it in .env (see .env.example).")
     return value
@@ -52,6 +64,10 @@ def make_agent(
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+    actual_port = int(env_port or port)
+    public_endpoint = os.getenv("AGENT_ENDPOINT") or os.getenv(f"{name.upper().replace('-', '_')}_ENDPOINT")
+    endpoints = [public_endpoint] if public_endpoint else [f"http://127.0.0.1:{actual_port}/submit"]
+
     use_mailbox = (
         not is_test
         and os.getenv("USE_MAILBOX", "false").lower() in {"1", "true", "yes"}
@@ -59,7 +75,8 @@ def make_agent(
     return Agent(
         name=name,
         seed=seed,
-        port=int(env_port or port),
+        port=actual_port,
+        endpoint=endpoints,
         loop=loop,
         network="testnet",
         mailbox=use_mailbox,
